@@ -44,10 +44,9 @@
 <div id="dosScreen" style="display: none;">
   <div id="output">
 Starting GEAR-DOS....
-Code GEAR BHAR OS [Version 5.1.2600]
-(C) Code Gearo P.V.T. L.T.D, 2021–2027
-
-C:\>
+Code GEAR OS [Version 5.1.2600]
+(C) Code Gear P.V.T. L.T.D, 2021–2027 
+    love by ARIN DUTTA 
   </div>
   <div id="inputLine">
     <span class="prompt" id="prompt">C:\></span>
@@ -61,7 +60,7 @@ C:\>
 
   // Boot animation messages
   const bootMessages = [
-    "Starting GEAR-DOS...",
+  
     "Loading system modules...",
     "Initializing services...",
     "Setting up environment...",
@@ -233,7 +232,7 @@ PYS      - Mini Python shell
       case "python shell":
         mode = "PYS";
         prompt.textContent = ">>>";
-        return "Starting Python Shell on BHAR-OS...\n(C) BHAR-OS, Code Gearo P.V.T L.T.D";
+        return "Starting Python Shell on GEAR-OS...\n(C) BHAR-OS, Code Gearo P.V.T L.T.D";
       default:
         return `Unknown command: ${command}`;
     }
