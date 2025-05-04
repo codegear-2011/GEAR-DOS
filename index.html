@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GEAR-DOS</title>
+  <style>
+    body {
+      background: black;
+      color: #00ff00;
+      font-family: monospace;
+      padding: 10px;
+      margin: 0;
+    }
+    #bootScreen, #dosScreen {
+      white-space: pre-wrap;
+    }
+    #bootScreen {
+      font-size: 18px;
+      padding: 20px;
+    }
+    #output {
+      white-space: pre-wrap;
+    }
+    #inputLine {
+      display: flex;
+    }
+    input {
+      background: black;
+      color: #00ff00;
+      border: none;
+      outline: none;
+      width: 100%;
+    }
+    .prompt {
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="bootScreen">
+  Starting GEAR-DOS...
+</div>
+
+<div id="dosScreen" style="display: none;">
+  <div id="output">
+Starting GEAR-DOS....
+Code GEAR BHAR OS [Version 5.1.2600]
+(C) Code Gearo P.V.T. L.T.D, 2021–2027
+
+C:\>
+  </div>
+  <div id="inputLine">
+    <span class="prompt" id="prompt">C:\></span>
+    <input type="text" id="input" autofocus autocomplete="off">
+  </div>
+</div>
+
+<script>
+  const bootScreen = document.getElementById('bootScreen');
+  const dosScreen = document.getElementById('dosScreen');
+
+  // Boot animation messages
+  const bootMessages = [
+    "Starting GEAR-DOS...",
+    "Loading system modules...",
+    "Initializing services...",
+    "Setting up environment...",
+    "Preparing command interpreter...",
+    "Launching terminal...",
+    "Ready."
+  ];
+
+  let bootIndex = 0;
+
+  function showNextBootMessage() {
+    if (bootIndex < bootMessages.length) {
+      bootScreen.innerHTML += "\n" + bootMessages[bootIndex];
+      bootIndex++;
+      setTimeout(showNextBootMessage, 1200); // 1.2 sec per line
+    }
+  }
+
+  showNextBootMessage();
+
+  // After 9 seconds, switch to DOS terminal
+  setTimeout(function() {
+    bootScreen.style.display = 'none';
+    dosScreen.style.display = 'block';
+  }, 9000);
+
+  // ========== Your Terminal Code ==========
+
+  const input = document.getElementById("input");
+  const output = document.getElementById("output");
+  const prompt = document.getElementById("prompt");
+
+  let fs = { "": {} };
+  let currentPath = "";
+  let mode = "DOS";
+  let ctWriting = false;
+  let ctFileName = "";
+
+  // Command list
+  const commandsList = `
+CLS      - Clear screen
+MD       - Make directory
+RD       - Remove directory
+CD       - Change directory
+CT       - Create file and write
+DEL      - Delete file
+DIR      - List directory
+TYPE     - Show file content
+COPY     - Copy file
+REN      - Rename file
+DATE     - Show date
+TIME     - Show time
+HELP     - Show commands
+PYS      - Mini Python shell
+    `.trim();
+
+  fs[""]["command.txt"] = commandsList;
+
+  function getDir(path) {
+    const parts = path.split("\\").filter(Boolean);
+    let dir = fs[""];
+    for (let part of parts) {
+      if (!dir[part]) dir[part] = {};
+      dir = dir[part];
+    }
+    return dir;
+  }
+
+  input.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      const command = input.value.trim();
+      output.innerHTML += `\n${prompt.textContent} ${command}`;
+
+      if (ctWriting) {
+        const dir = getDir(currentPath);
+        if (command.toLowerCase() === "save") {
+          ctWriting = false;
+          ctFileName = "";
+          output.innerHTML += `\nFile saved.`;
+        } else {
+          dir[ctFileName] += command + "\n";
+        }
+        input.value = "";
+        return;
+      }
+
+      const result = handleCommand(command);
+      if (result) output.innerHTML += `\n${result}`;
+      input.value = "";
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+  });
+
+  function handleCommand(cmd) {
+    if (mode === "PYS") {
+      if (cmd === "exit") {
+        mode = "DOS";
+        prompt.textContent = `C:\\${currentPath}>`;
+        return "Exiting Python Shell...";
+      }
+      return `>>> ${evalSafe(cmd)}`;
+    }
+
+    const [command, ...args] = cmd.split(" ");
+    const arg = args.join(" ");
+    const dir = getDir(currentPath);
+
+    switch (command.toLowerCase()) {
+      case "cls":
+        output.innerHTML = "";
+        return "";
+      case "md":
+        if (!arg) return "Usage: MD [folder]";
+        if (dir[arg]) return "Folder already exists.";
+        dir[arg] = {};
+        return `Directory '${arg}' created.`;
+      case "rd":
+        if (!arg || typeof dir[arg] !== "object") return "Directory not found.";
+        delete dir[arg];
+        return `Directory '${arg}' removed.`;
+      case "cd":
+        if (arg === "..") {
+          const parts = currentPath.split("\\").filter(Boolean);
+          parts.pop();
+          currentPath = parts.join("\\");
+        } else if (dir[arg] && typeof dir[arg] === "object") {
+          currentPath += (currentPath ? "\\" : "") + arg;
+        } else return "Directory not found.";
+        prompt.textContent = `C:\\${currentPath}>`;
+        return "";
+      case "dir":
+        const entries = Object.keys(dir);
+        return entries.length
+          ? entries.map(e => typeof dir[e] === "object" ? `<DIR> ${e}` : `     ${e}`).join("\n")
+          : "No files or directories.";
+      case "ct":
+        if (!arg) return "Usage: CT [filename]";
+        if (dir[arg]) return "File exists.";
+        dir[arg] = "";
+        ctWriting = true;
+        ctFileName = arg;
+        return `Writing to '${arg}'. Type 'SAVE' to finish.`;
+      case "type":
+        if (!arg || typeof dir[arg] !== "string") return "File not found.";
+        return dir[arg] || "[Empty file]";
+      case "del":
+        if (!arg || !dir[arg]) return "File not found.";
+        delete dir[arg];
+        return `'${arg}' deleted.`;
+      case "copy":
+        const [src, dest] = args;
+        if (!src || !dest || typeof dir[src] !== "string") return "Invalid source file.";
+        dir[dest] = dir[src];
+        return `'${src}' copied to '${dest}'.`;
+      case "ren":
+        const [oldName, newName] = args;
+        if (!oldName || !newName || !dir[oldName]) return "Invalid file.";
+        dir[newName] = dir[oldName];
+        delete dir[oldName];
+        return `'${oldName}' renamed to '${newName}'.`;
+      case "date":
+        return new Date().toLocaleDateString();
+      case "time":
+        return new Date().toLocaleTimeString();
+      case "help":
+        return commandsList;
+      case "pys":
+      case "python":
+      case "python shell":
+        mode = "PYS";
+        prompt.textContent = ">>>";
+        return "Starting Python Shell on BHAR-OS...\n(C) BHAR-OS, Code Gearo P.V.T L.T.D";
+      default:
+        return `Unknown command: ${command}`;
+    }
+  }
+
+  function evalSafe(code) {
+    try {
+      return eval(code);
+    } catch {
+      return "Error in Python expression.";
+    }
+  }
+</script>
+
+</body>
+    </html>
